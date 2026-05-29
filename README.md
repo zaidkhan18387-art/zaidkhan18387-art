@@ -181,7 +181,7 @@ feedback.html
   </script>
 </body>
 </html>
-
+...............................................................................................................................................
 
 5.
 a) Create a webpage displaying three images side by side using HTML and Boostrap.
@@ -294,7 +294,7 @@ news-article.html
 </body>
 </html>
 
-
+........................................................................................................................................................
 6.
 a) Create an HTML form to collect feedback from users with fields like name, email,
 comments, and a submit button.
@@ -431,6 +431,7 @@ navbar.html
 </body>
 </html>
 
+........................................................................................................................................................
 8.
 a) Write CSS to design a responsive navigation menu that changes into a mobile-
 friendly hamburger menu on smaller screens.
@@ -593,7 +594,7 @@ B.ans
   </script>
 </body>
 </html>
-
+........................................................................................................................................................
 
 9.
 a) Create a webpage using javascript for counting the number of users logged in a
@@ -757,7 +758,7 @@ box-animation.html
 </body>
 </html>
 
-
+..........................................................................................................................................................
 7.
 a) Create a react page for the student result management system.
 b) Design a &quot;card&quot; layout using CSS and flexbox with a border, shadow, padding, and
@@ -973,7 +974,7 @@ card-layout.html
 </body>
 </html>
 
-
+..........................................................................................................................................................
 10.
 a) Design a webpage in React for managing student course registrations with features
 to add, view, and update course details dynamically.
@@ -1195,7 +1196,544 @@ bg-changer.html
 </html>
 
 
+...............................................................................................................................................................
 
+1a.Design and implement a complete Online Food Ordering System web
+application using appropriate frontend technologies such as HTML, CSS,
+JavaScript, and React.
+1b.Design backend technologies using Node.js/Express/Django for an online
+shopping system.Create UI pages for product listing, product details, cart, and
+order management with API communication and database design.Include
+authentication, validation, search, login/registration, and responsive design
+features.
+
+
+ANS:
+1
+Install Node.js (v18+) from nodejs.org. Run node -v to verify.
+
+2
+Run npx create-react-app food-ordering then cd food-ordering to scaffold the frontend.
+
+3
+Inside the project create a server/ folder. Run npm init -y inside it and install: npm install express cors jsonwebtoken bcryptjs mongoose.
+
+4
+Create the files below, then run node server/index.js for backend and npm start for frontend in separate terminals.
+
+Banckend(server/index.js):
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const SECRET = 'mysecretkey123';
+
+// In-memory DB (replace with MongoDB in production)
+let users = [];
+let products = [
+  { id:1, name:'Pizza Margherita', price:199, category:'Pizza', img:'https://via.placeholder.com/200' },
+  { id:2, name:'Veg Burger', price:99, category:'Burger', img:'https://via.placeholder.com/200' },
+  { id:3, name:'Pasta Arrabbiata', price:149, category:'Pasta', img:'https://via.placeholder.com/200' },
+];
+let orders = [];
+
+// Auth middleware
+function auth(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ msg: 'No token' });
+  try {
+    req.user = jwt.verify(token, SECRET);
+    next();
+  } catch { res.status(401).json({ msg: 'Invalid token' }); }
+}
+
+// Register
+app.post('/api/register', async (req, res) => {
+  const { name, email, password } = req.body;
+  if (users.find(u => u.email === email))
+    return res.status(400).json({ msg: 'User already exists' });
+  const hash = await bcrypt.hash(password, 10);
+  users.push({ id: Date.now(), name, email, password: hash });
+  res.json({ msg: 'Registered successfully' });
+});
+
+// Login
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = users.find(u => u.email === email);
+  if (!user || !(await bcrypt.compare(password, user.password)))
+    return res.status(400).json({ msg: 'Invalid credentials' });
+  const token = jwt.sign({ id: user.id, name: user.name }, SECRET, { expiresIn: '1d' });
+  res.json({ token, name: user.name });
+});
+
+// Products (with search)
+app.get('/api/products', (req, res) => {
+  const { search, category } = req.query;
+  let result = products;
+  if (search) result = result.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+  if (category) result = result.filter(p => p.category === category);
+  res.json(result);
+});
+
+// Place order (protected)
+app.post('/api/orders', auth, (req, res) => {
+  const order = { id: Date.now(), userId: req.user.id, items: req.body.items,
+    total: req.body.total, status: 'Placed', createdAt: new Date() };
+  orders.push(order);
+  res.json(order);
+});
+
+// Get user orders
+app.get('/api/orders', auth, (req, res) => {
+  res.json(orders.filter(o => o.userId === req.user.id));
+});
+
+app.listen(5000, () => console.log('Server running on port 5000'));
+
+Frontend(src/App.js): 
+import React, { useState, useEffect } from 'react';
+import './App.css';
+
+const API = 'http://localhost:5000/api';
+
+export default function App() {
+  const [page, setPage] = useState('login');
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [products, setProducts] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ name:'', email:'', password:'' });
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    if (token) { setPage('products'); fetchProducts(); }
+  }, [token]);
+
+  const fetchProducts = async (q = '') => {
+    const res = await fetch(`${API}/products?search=${q}`);
+    setProducts(await res.json());
+  };
+
+  const register = async () => {
+    const res = await fetch(`${API}/register`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(form)
+    });
+    const data = await res.json();
+    setMsg(data.msg);
+  };
+
+  const login = async () => {
+    const res = await fetch(`${API}/login`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email: form.email, password: form.password })
+    });
+    const data = await res.json();
+    if (data.token) { localStorage.setItem('token', data.token); setToken(data.token); }
+    else setMsg(data.msg);
+  };
+
+  const addToCart = (product) => {
+    const existing = cart.find(i => i.id === product.id);
+    if (existing) setCart(cart.map(i => i.id === product.id ? {...i, qty: i.qty+1} : i));
+    else setCart([...cart, { ...product, qty: 1 }]);
+  };
+
+  const placeOrder = async () => {
+    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const res = await fetch(`${API}/orders`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization': `Bearer ${token}`},
+      body: JSON.stringify({ items: cart, total })
+    });
+    if (res.ok) { setCart([]); setMsg('Order placed!'); setPage('orders'); loadOrders(); }
+  };
+
+  const loadOrders = async () => {
+    const res = await fetch(`${API}/orders`, { headers: {'Authorization': `Bearer ${token}`} });
+    setOrders(await res.json());
+  };
+
+  const logout = () => { localStorage.removeItem('token'); setToken(null); setPage('login'); };
+
+  if (!token) return (
+    <div className="auth-box">
+      <h2>{page === 'login' ? 'Login' : 'Register'}</h2>
+      {page === 'register' && <input placeholder="Name" onChange={e=>setForm({...form,name:e.target.value})}/>}
+      <input placeholder="Email" onChange={e=>setForm({...form,email:e.target.value})}/>
+      <input type="password" placeholder="Password" onChange={e=>setForm({...form,password:e.target.value})}/>
+      <button onClick={page==='login' ? login : register}>{page === 'login' ? 'Login' : 'Register'}</button>
+      <p onClick={()=>setPage(page==='login'?'register':'login')} className="link">
+        {page === 'login' ? 'No account? Register' : 'Have account? Login'}
+      </p>
+      {msg && <p className="msg">{msg}</p>}
+    </div>
+  );
+
+  return (
+    <div>
+      <nav className="navbar">
+        <h1>FoodApp</h1>
+        <div>
+          <button onClick={()=>setPage('products')}>Menu</button>
+          <button onClick={()=>setPage('cart')}>Cart ({cart.reduce((s,i)=>s+i.qty,0)})</button>
+          <button onClick={()=>{setPage('orders');loadOrders();}}>Orders</button>
+          <button onClick={logout}>Logout</button>
+        </div>
+      </nav>
+
+      {page === 'products' && (
+        <div className="page">
+          <input className="search" placeholder="Search food..." value={search}
+            onChange={e=>{setSearch(e.target.value);fetchProducts(e.target.value);}}/>
+          <div className="grid">
+            {products.map(p=>(
+              <div key={p.id} className="card">
+                <img src={p.img} alt={p.name}/>
+                <h3>{p.name}</h3>
+                <p>₹{p.price}</p>
+                <button onClick={()=>addToCart(p)}>Add to Cart</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {page === 'cart' && (
+        <div className="page">
+          <h2>Your Cart</h2>
+          {cart.map(i=><div key={i.id} className="cart-item">
+            <span>{i.name}</span><span>x{i.qty}</span><span>₹{i.price*i.qty}</span>
+          </div>)}
+          <h3>Total: ₹{cart.reduce((s,i)=>s+i.price*i.qty,0)}</h3>
+          <button onClick={placeOrder} disabled={!cart.length}>Place Order</button>
+        </div>
+      )}
+
+      {page === 'orders' && (
+        <div className="page">
+          <h2>My Orders</h2>
+          {orders.map(o=><div key={o.id} className="order-card">
+            <p>Order #{o.id} — <strong>{o.status}</strong></p>
+            <p>Total: ₹{o.total}</p>
+          </div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+CSS(src/App.css):
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; }
+.navbar { background: #e63946; color: white; display: flex;
+  justify-content: space-between; align-items: center; padding: 1rem 2rem; }
+.navbar h1 { font-size: 1.5rem; }
+.navbar button { background: transparent; border: 1px solid white;
+  color: white; padding: 6px 14px; margin-left: 8px; border-radius: 4px; cursor: pointer; }
+.navbar button:hover { background: rgba(255,255,255,0.2); }
+.auth-box { max-width: 400px; margin: 60px auto; background: white;
+  padding: 2rem; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+.auth-box h2 { margin-bottom: 1rem; }
+.auth-box input { display: block; width: 100%; padding: 10px;
+  margin-bottom: 12px; border: 1px solid #ddd; border-radius: 4px; }
+.auth-box button { width: 100%; padding: 10px; background: #e63946;
+  color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+.link { margin-top: 12px; color: #e63946; cursor: pointer; font-size: 14px; }
+.msg { margin-top: 8px; color: green; }
+.page { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+.search { width: 100%; padding: 10px 14px; font-size: 1rem;
+  border: 1px solid #ddd; border-radius: 24px; margin-bottom: 1.5rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 1.5rem; }
+.card { background: white; border-radius: 8px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.card img { width: 100%; height: 150px; object-fit: cover; }
+.card h3, .card p, .card button { padding: 8px 12px; }
+.card button { width: 100%; background: #e63946; color: white;
+  border: none; cursor: pointer; padding: 10px; }
+.cart-item { display: flex; justify-content: space-between;
+  padding: 10px; background: white; border-radius: 4px; margin-bottom: 8px; }
+.order-card { background: white; border-radius: 8px; padding: 14px;
+  margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+  how to run:
+  Open Terminal 1:
+
+cd food-ordering/server
+ run:node index.js
+ 
+You should see something like:
+
+Server running on port 5000
+MongoDB Connected
+
+Open Terminal 2:
+
+cd food-ordering
+npm start
+.............................................................................................................................................................
+2 Design and develop a Student Performance Monitoring System for managing
+marks, assignments, and feedback. Design the frontend, backend functionality,
+database design, and API communication used to store and retrieve student
+records.Include features such as login authentication, dashboards, search/filter
+options, and responsive design.
+
+
+ANS: 
+backend(server/index.js):
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const app = express();
+app.use(cors()); app.use(express.json());
+const SECRET = 'spms_secret';
+
+let users = [
+  { id:1, name:'Prof. Kumar', email:'teacher@school.com', password: bcrypt.hashSync('pass123',10), role:'teacher' },
+  { id:2, name:'Rahul Sharma', email:'rahul@school.com', password: bcrypt.hashSync('pass123',10), role:'student' },
+  { id:3, name:'Priya Singh', email:'priya@school.com', password: bcrypt.hashSync('pass123',10), role:'student' },
+];
+let marks = [
+  { id:1, studentId:2, subject:'Maths', marks:85, total:100, date:'2024-01-10' },
+  { id:2, studentId:2, subject:'Physics', marks:72, total:100, date:'2024-01-12' },
+  { id:3, studentId:3, subject:'Maths', marks:90, total:100, date:'2024-01-10' },
+];
+let assignments = [];
+let feedback = [];
+
+function auth(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ msg: 'No token' });
+  try { req.user = jwt.verify(token, SECRET); next(); }
+  catch { res.status(401).json({ msg: 'Unauthorized' }); }
+}
+
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = users.find(u => u.email === email);
+  if (!user || !(await bcrypt.compare(password, user.password)))
+    return res.status(400).json({ msg: 'Invalid credentials' });
+  const token = jwt.sign({ id:user.id, name:user.name, role:user.role }, SECRET, { expiresIn:'1d' });
+  res.json({ token, name:user.name, role:user.role });
+});
+
+// Get all students (teacher only)
+app.get('/api/students', auth, (req, res) => {
+  if (req.user.role !== 'teacher') return res.status(403).json({ msg: 'Forbidden' });
+  const students = users.filter(u => u.role === 'student')
+    .map(u => ({ id:u.id, name:u.name, email:u.email }));
+  res.json(students);
+});
+
+// Add/get marks
+app.get('/api/marks', auth, (req, res) => {
+  const { studentId, search } = req.query;
+  let result = marks;
+  if (req.user.role === 'student') result = result.filter(m => m.studentId === req.user.id);
+  else if (studentId) result = result.filter(m => m.studentId === parseInt(studentId));
+  if (search) result = result.filter(m => m.subject.toLowerCase().includes(search.toLowerCase()));
+  res.json(result);
+});
+
+app.post('/api/marks', auth, (req, res) => {
+  if (req.user.role !== 'teacher') return res.status(403).json({ msg: 'Forbidden' });
+  const entry = { id: Date.now(), ...req.body };
+  marks.push(entry);
+  res.json(entry);
+});
+
+// Assignments
+app.get('/api/assignments', auth, (req, res) => {
+  let result = assignments;
+  if (req.user.role === 'student') result = result.filter(a => a.studentId === req.user.id);
+  res.json(result);
+});
+
+app.post('/api/assignments', auth, (req, res) => {
+  const a = { id: Date.now(), ...req.body };
+  assignments.push(a);
+  res.json(a);
+});
+
+// Feedback
+app.post('/api/feedback', auth, (req, res) => {
+  const f = { id: Date.now(), teacherId: req.user.id, ...req.body };
+  feedback.push(f);
+  res.json(f);
+});
+
+app.get('/api/feedback', auth, (req, res) => {
+  if (req.user.role === 'student')
+    return res.json(feedback.filter(f => f.studentId === req.user.id));
+  res.json(feedback);
+});
+
+app.listen(5000, () => console.log('Server at 5000'));
+
+Frontend(src/App.js):
+import React, { useState, useEffect } from 'react';
+
+const API = 'http://localhost:5000/api';
+
+export default function App() {
+  const [token, setToken] = useState(null);
+  const [user, setUser]   = useState(null);
+  const [marks, setMarks] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ email:'', password:'' });
+  const [newMark, setNewMark] = useState({ studentId:'', subject:'', marks:'', total:100 });
+  const [newFeedback, setNewFeedback] = useState({ studentId:'', message:'' });
+
+  useEffect(() => {
+    if (token) { fetchMarks(); fetchFeedback();
+      if (user?.role === 'teacher') fetchStudents(); }
+  }, [token]);
+
+  const login = async () => {
+    const res = await fetch(`${API}/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(form)
+    });
+    const data = await res.json();
+    if (data.token) { setToken(data.token); setUser({ name:data.name, role:data.role }); }
+    else alert(data.msg);
+  };
+
+  const headers = () => ({ 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` });
+
+  const fetchMarks = async () => {
+    const res = await fetch(`${API}/marks?search=${search}`, { headers: headers() });
+    setMarks(await res.json());
+  };
+  const fetchStudents = async () => {
+    const res = await fetch(`${API}/students`, { headers: headers() });
+    setStudents(await res.json());
+  };
+  const fetchFeedback = async () => {
+    const res = await fetch(`${API}/feedback`, { headers: headers() });
+    setFeedback(await res.json());
+  };
+
+  const addMark = async () => {
+    await fetch(`${API}/marks`, { method:'POST', headers: headers(),
+      body: JSON.stringify({...newMark, studentId: parseInt(newMark.studentId)}) });
+    fetchMarks();
+  };
+
+  const addFeedback = async () => {
+    await fetch(`${API}/feedback`, { method:'POST', headers: headers(),
+      body: JSON.stringify({...newFeedback, studentId: parseInt(newFeedback.studentId)}) });
+    fetchFeedback();
+  };
+
+  if (!token) return (
+    <div style={{maxWidth:400,margin:'80px auto',padding:'2rem',
+      background:'white',borderRadius:8,boxShadow:'0 2px 12px rgba(0,0,0,0.1)'}}>
+      <h2>Student Portal Login</h2>
+      <p style={{fontSize:13,color:'#666',margin:'8px 0 16px'}}>
+        Teacher: teacher@school.com / pass123  |  Student: rahul@school.com / pass123
+      </p>
+      <input style={inp} placeholder="Email" onChange={e=>setForm({...form,email:e.target.value})}/>
+      <input style={inp} type="password" placeholder="Password" onChange={e=>setForm({...form,password:e.target.value})}/>
+      <button style={btn} onClick={login}>Login</button>
+    </div>
+  );
+
+  const avg = marks.length ? (marks.reduce((s,m)=>s+m.marks,0)/marks.length).toFixed(1) : 0;
+
+  return (
+    <div style={{maxWidth:1000,margin:'0 auto',padding:'2rem',fontFamily:'Arial,sans-serif'}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:'1.5rem'}}>
+        <h1>Welcome, {user.name} ({user.role})</h1>
+        <button style={btn} onClick={()=>setToken(null)}>Logout</button>
+      </div>
+
+      {/* Dashboard Stats */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'1rem',marginBottom:'2rem'}}>
+        <div style={statCard}><h3>{marks.length}</h3><p>Total Records</p></div>
+        <div style={statCard}><h3>{avg}%</h3><p>Average Marks</p></div>
+        <div style={statCard}><h3>{feedback.length}</h3><p>Feedback</p></div>
+      </div>
+
+      {/* Search */}
+      <input style={{...inp,marginBottom:'1rem'}} placeholder="Search by subject..."
+        onChange={e=>{setSearch(e.target.value);fetchMarks();}}/>
+
+      {/* Marks Table */}
+      <h2 style={{marginBottom:'1rem'}}>Marks</h2>
+      <table style={{width:'100%',borderCollapse:'collapse',background:'white',
+        borderRadius:8,overflow:'hidden',boxShadow:'0 1px 4px rgba(0,0,0,0.1)'}}>
+        <thead><tr style={{background:'#3a86ff',color:'white'}}>
+          <th style={th}>Subject</th><th style={th}>Marks</th>
+          <th style={th}>Total</th><th style={th}>%</th><th style={th}>Date</th>
+        </tr></thead>
+        <tbody>{marks.map(m=><tr key={m.id}>
+          <td style={td}>{m.subject}</td><td style={td}>{m.marks}</td>
+          <td style={td}>{m.total}</td>
+          <td style={td}><span style={{color: m.marks/m.total*100 >= 40 ? 'green':'red'}}>
+            {(m.marks/m.total*100).toFixed(1)}%</span></td>
+          <td style={td}>{m.date}</td>
+        </tr>)}</tbody>
+      </table>
+
+      {/* Teacher: Add marks + feedback */}
+      {user.role === 'teacher' && (<>
+        <h2 style={{marginTop:'2rem',marginBottom:'1rem'}}>Add Marks</h2>
+        <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+          <select style={inp} onChange={e=>setNewMark({...newMark,studentId:e.target.value})}>
+            <option value="">Select Student</option>
+            {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <input style={inp} placeholder="Subject" onChange={e=>setNewMark({...newMark,subject:e.target.value})}/>
+          <input style={{...inp,width:80}} placeholder="Marks" type="number"
+            onChange={e=>setNewMark({...newMark,marks:parseInt(e.target.value)})}/>
+          <button style={btn} onClick={addMark}>Add Marks</button>
+        </div>
+
+        <h2 style={{marginTop:'2rem',marginBottom:'1rem'}}>Give Feedback</h2>
+        <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
+          <select style={inp} onChange={e=>setNewFeedback({...newFeedback,studentId:e.target.value})}>
+            <option value="">Select Student</option>
+            {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <input style={{...inp,flex:1}} placeholder="Feedback message"
+            onChange={e=>setNewFeedback({...newFeedback,message:e.target.value})}/>
+          <button style={btn} onClick={addFeedback}>Send</button>
+        </div>
+      </>)}
+
+      {/* Feedback list */}
+      <h2 style={{marginTop:'2rem',marginBottom:'1rem'}}>Feedback</h2>
+      {feedback.map(f=><div key={f.id} style={{background:'white',padding:'12px',
+        borderRadius:6,marginBottom:8,borderLeft:'4px solid #3a86ff'}}>
+        <p style={{fontSize:14}}>{f.message}</p>
+      </div>)}
+    </div>
+  );
+}
+
+const inp = {display:'block',padding:'8px 12px',border:'1px solid #ddd',borderRadius:4,marginBottom:8,fontSize:14};
+const btn = {padding:'8px 18px',background:'#3a86ff',color:'white',border:'none',borderRadius:4,cursor:'pointer'};
+const statCard = {background:'white',padding:'1.2rem',borderRadius:8,textAlign:'center',
+  boxShadow:'0 1px 6px rgba(0,0,0,0.1)'};
+const th = {padding:'10px 14px',textAlign:'left'};
+const td = {padding:'10px 14px',borderBottom:'1px solid #f0f0f0'};
+
+everything same as exp 1
+
+
+
+.............................................................................................................................................................
 3.Design and develop a full-stack Online Examination System where students can
 register, log in, and attend exams online.Design the frontend design for exam
 interfaces, backend processing for evaluation, and secure storage of student responses
