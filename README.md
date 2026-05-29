@@ -1196,7 +1196,142 @@ bg-changer.html
 
 
 
+3.Design and develop a full-stack Online Examination System where students can
+register, log in, and attend exams online.Design the frontend design for exam
+interfaces, backend processing for evaluation, and secure storage of student responses
+and results.Include features such as authentication, timer-based exams, result
+generation, and responsive design.
 
+
+ANS
+same as exp1 and exp2 
+Frontend(src/Exam.js):
+
+import React, { useState, useEffect, useCallback } from 'react';
+
+const questions = [
+  { id:1, q:'What does HTML stand for?',
+    options:['HyperText Markup Language','High Text Machine Language','HyperTool Markup Link','None'],
+    answer:0 },
+  { id:2, q:'Which tag is used to create a hyperlink?',
+    options:['<link>','<a>','<href>','<url>'], answer:1 },
+  { id:3, q:'CSS stands for:',
+    options:['Computer Style Sheets','Creative Style Sheets','Cascading Style Sheets','Colorful Style Sheets'],
+    answer:2 },
+  { id:4, q:'Which is a JavaScript framework?',
+    options:['Django','Spring','React','Laravel'], answer:2 },
+  { id:5, q:'HTTP status code for "Not Found" is:',
+    options:['200','301','404','500'], answer:2 },
+];
+
+export default function Exam() {
+  const [started, setStarted] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [timeLeft, setTimeLeft] = useState(300); // 5 min
+  const [submitted, setSubmitted] = useState(false);
+  const [result, setResult] = useState(null);
+  const [name, setName] = useState('');
+
+  const submit = useCallback(() => {
+    let score = 0;
+    questions.forEach(q => { if (answers[q.id] === q.answer) score++; });
+    setResult({ score, total: questions.length, percent: (score/questions.length*100).toFixed(1) });
+    setSubmitted(true);
+  }, [answers]);
+
+  useEffect(() => {
+    if (!started || submitted) return;
+    if (timeLeft === 0) { submit(); return; }
+    const t = setTimeout(() => setTimeLeft(t => t-1), 1000);
+    return () => clearTimeout(t);
+  }, [started, submitted, timeLeft, submit]);
+
+  const mins = String(Math.floor(timeLeft/60)).padStart(2,'0');
+  const secs = String(timeLeft%60).padStart(2,'0');
+
+  if (!started) return (
+    <div style={centerBox}>
+      <h2>Online Examination</h2>
+      <p style={{margin:'12px 0',color:'#555'}}>5 Questions · 5 Minutes · Auto-Submit</p>
+      <input style={inp} placeholder="Enter your name" value={name}
+        onChange={e=>setName(e.target.value)}/>
+      <button style={btn} onClick={()=>name && setStarted(true)} disabled={!name}>
+        Start Exam
+      </button>
+    </div>
+  );
+
+  if (submitted) return (
+    <div style={centerBox}>
+      <h2>Exam Completed!</h2>
+      <div style={{fontSize:'4rem',margin:'1rem 0'}}>
+        {result.percent >= 60 ? '🎉' : '📚'}
+      </div>
+      <p style={{fontSize:'1.4rem',fontWeight:'bold'}}>
+        {result.score} / {result.total}
+      </p>
+      <p style={{color: result.percent >= 60 ? 'green' : 'red', fontSize:'1.1rem'}}>
+        {result.percent}% — {result.percent >= 60 ? 'PASS' : 'FAIL'}
+      </p>
+      <h3 style={{marginTop:'1.5rem',marginBottom:'0.75rem'}}>Review</h3>
+      {questions.map(q=><div key={q.id} style={{textAlign:'left',marginBottom:12,
+        background: answers[q.id]===q.answer ? '#e8f5e9':'#ffebee',
+        padding:'10px',borderRadius:6}}>
+        <p style={{fontWeight:'bold',fontSize:14}}>{q.q}</p>
+        <p style={{fontSize:13,color:'green'}}>Correct: {q.options[q.answer]}</p>
+        {answers[q.id] !== q.answer &&
+          <p style={{fontSize:13,color:'red'}}>Your answer: {q.options[answers[q.id]] || 'Not answered'}</p>}
+      </div>)}
+      <button style={btn} onClick={()=>{setStarted(false);setSubmitted(false);setAnswers({});
+        setTimeLeft(300);setCurrent(0);}}>Retake Exam</button>
+    </div>
+  );
+
+  const q = questions[current];
+  return (
+    <div style={{maxWidth:640,margin:'40px auto',fontFamily:'Arial,sans-serif',padding:'1rem'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.5rem'}}>
+        <span style={{fontWeight:'bold'}}>{name}'s Exam</span>
+        <span style={{background: timeLeft < 60 ? '#e63946':'#3a86ff',color:'white',
+          padding:'6px 16px',borderRadius:20,fontFamily:'monospace',fontSize:'1.1rem'}}>
+          {mins}:{secs}
+        </span>
+        <span style={{color:'#666'}}>Q {current+1}/{questions.length}</span>
+      </div>
+
+      <div style={{background:'white',borderRadius:12,padding:'1.5rem',
+        boxShadow:'0 2px 12px rgba(0,0,0,0.1)',marginBottom:'1.5rem'}}>
+        <p style={{fontSize:'1.1rem',fontWeight:'bold',marginBottom:'1rem'}}>{q.q}</p>
+        {q.options.map((opt,i)=><div key={i}
+          style={{padding:'10px 14px',marginBottom:8,borderRadius:6,cursor:'pointer',
+            border:`2px solid ${answers[q.id]===i ? '#3a86ff':'#ddd'}`,
+            background: answers[q.id]===i ? '#e8f0fe':'white'}}
+          onClick={()=>setAnswers({...answers,[q.id]:i})}>
+          {String.fromCharCode(65+i)}. {opt}
+        </div>)}
+      </div>
+
+      <div style={{display:'flex',justifyContent:'space-between'}}>
+        <button style={{...btn,background:'#888'}} onClick={()=>setCurrent(c=>c-1)} disabled={current===0}>
+          Previous
+        </button>
+        {current < questions.length-1
+          ? <button style={btn} onClick={()=>setCurrent(c=>c+1)}>Next</button>
+          : <button style={{...btn,background:'#2d6a4f'}} onClick={submit}>Submit Exam</button>}
+      </div>
+    </div>
+  );
+}
+
+const centerBox = {maxWidth:480,margin:'60px auto',background:'white',
+  padding:'2rem',borderRadius:12,boxShadow:'0 2px 12px rgba(0,0,0,0.1)',textAlign:'center',fontFamily:'Arial,sans-serif'};
+const inp = {display:'block',width:'100%',padding:'10px 14px',border:'1px solid #ddd',borderRadius:6,marginBottom:12,fontSize:15};
+const btn = {padding:'10px 24px',background:'#3a86ff',color:'white',border:'none',borderRadius:6,cursor:'pointer',fontSize:15};
+
+
+Backend (same as EXP1 )
+do everytrhigs same as exp 1 and 2
 
 
 
